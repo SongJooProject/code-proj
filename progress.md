@@ -14,6 +14,8 @@
 9. ✅ pytest 9.1.1 설치
 10. ✅ ruff 린팅 검사 통과
 11. ✅ pytest 테스트 2개 통과
+12. ✅ 자동화 스크립트 생성 (scripts/lint_test.py, scripts/lint-test.bat)
+13. ✅ 자동화 스크립트 테스트 통과
 
 ### 발생한 문제
 - ruff가 사전 설치되어 있지 않음 → pip install ruff로 해결
@@ -21,11 +23,12 @@
 - ruff 린팅 오류 (줄 끝 개행문자 누락) → ruff check --fix로 자동 해결
 
 ### 다음 할 일
-1. AGENTS.md에서 Task 2 완료 처리
-2. Task 3 (기능 구현) 시작
-3. CI/CD 설정 (GitHub Actions 등)
+1. CI/CD 설정 (GitHub Actions 등)
+2. 추가 에이전트 (코드 리뷰어 등)
+3. 프로젝트 기능 구현 시작
 
 ### 메모
 - 하네스 엔지니어링 구조 적용 시작
 - AGENTS.md에 작업 분해, 완료 기준, 코딩 컨벤션 정리 완료
 - warm start 전략 적용: 기본 프로젝트 구조 미리 만들어둠
+- 자동화 스크립트로 린팅+테스트 자동 실행 가능
