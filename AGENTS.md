@@ -1,5 +1,13 @@
 # AGENTS.md - 프로젝트 가이드라인
 
+## 참고 문서
+작업 전 아래 문서를 반드시 확인하세요.
+
+- 기술 결정: `docs/decisions/` — 왜 이 구조인지 이유가 담겨 있습니다
+- 실패 기록: `docs/failures/` — 시도하면 안 되는 방법 목록입니다
+- 용어 사전: `docs/domain/glossary.md` — 도메인 용어의 정확한 의미
+- 코딩 규칙: `docs/conventions/` — 명명, 에러 처리, 테스트 규칙
+
 ## 프로젝트 개요
 - **이름**: D:\code proj
 - **언어**: Python 3.10+
@@ -14,7 +22,12 @@ D:\code proj\
 ├── progress.md            # 진행 상황 기록
 ├── src/                   # 소스 코드
 ├── tests/                 # 테스트 코드
+├── scripts/               # 자동화 스크립트
 └── docs/                  # 문서
+    ├── decisions/         # 기술 결정 기록 (ADR)
+    ├── conventions/       # 코딩 규칙 상세 설명
+    ├── domain/            # 비즈니스 도메인 지식
+    └── failures/          # 실패 기록
 ```
 
 ## 작업 분해 (Task Breakdown)
