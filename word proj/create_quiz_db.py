@@ -1,7 +1,9 @@
+import contextlib
 import json
 import os
 import shutil
 import sys
+import time
 
 import docx
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -42,25 +44,46 @@ def get_blank_words_for_file(filename):
 
     elif "지자체" in filename or "공무원법" in filename:
         words = []
-        words.extend(db.get("행정심판법", {}).get("이의신청", []))
-        words.extend(db.get("행정심판법", {}).get("행정심판", []))
+        words.extend(db.get("지방자치단체_공무원법", {}).get("지방자치", []))
+        words.extend(db.get("지방자치단체_공무원법", {}).get("공무원", []))
+        words.extend(db.get("지방자치단체_공무원법", {}).get("인사", []))
+        words.extend(db.get("지방자치단체_공무원법", {}).get("직무", []))
+        words.extend(db.get("토지보상법", {}).get("총칙", []))
+        words.extend(db.get("토지보상법", {}).get("보상", []))
+        words.extend(db.get("토지보상법", {}).get("절차", []))
+        words.extend(db.get("토지보상법", {}).get("특례", []))
+        words.extend(db.get("재개발_도시정비", {}).get("총칙", []))
+        words.extend(db.get("재개발_도시정비", {}).get("절차", []))
+        words.extend(db.get("재개발_도시정비", {}).get("동의", []))
+        words.extend(db.get("재개발_도시정비", {}).get("인가", []))
         return list(set(words))
 
     elif "행정과 법원리" in filename or "행정절차" in filename:
         words = []
-        words.extend(db.get("행정입법", {}).get("법원리", []))
-        words.extend(db.get("행정입법", {}).get("구분", []))
+        words.extend(db.get("행정법_일반원칙", {}).get("비례원칙", []))
+        words.extend(db.get("행정법_일반원칙", {}).get("평등원칙", []))
+        words.extend(db.get("행정법_일반원칙", {}).get("신뢰보호", []))
+        words.extend(db.get("행정법_일반원칙", {}).get("기타원칙", []))
+        words.extend(db.get("행정절차법", {}).get("총칙", []))
+        words.extend(db.get("행정절차법", {}).get("원칙", []))
+        words.extend(db.get("행정절차법", {}).get("절차", []))
+        words.extend(db.get("행정절차법", {}).get("행정지도", []))
         return list(set(words))
 
     elif "행정심판" in filename or "행정소송" in filename:
         words = []
+        words.extend(db.get("행정심판법", {}).get("이의신청", []))
+        words.extend(db.get("행정심판법", {}).get("행정심판", []))
         words.extend(db.get("행정심판법", {}).get("취소심판", []))
         words.extend(db.get("행정심판법", {}).get("형성재결", []))
+        words.extend(db.get("행정심판법", {}).get("재결효력", []))
+        words.extend(db.get("행정심판법", {}).get("절차", []))
         words.extend(db.get("행정소송법", {}).get("소송유형", []))
         words.extend(db.get("행정소송법", {}).get("청구요건", []))
         words.extend(db.get("행정소송법", {}).get("기판력", []))
         words.extend(db.get("행정소송법", {}).get("기속력", []))
         words.extend(db.get("행정소송법", {}).get("집행정지", []))
+        words.extend(db.get("행정소송법", {}).get("절차", []))
         return list(set(words))
 
     elif "행정입법" in filename or "행정계획" in filename:
@@ -89,7 +112,22 @@ def create_quiz_from_db(source_path, output_dir):
 
     # 1. 원본 파일 복사
     question_path = os.path.join(output_dir, f"{filename}_문제.docx")
-    shutil.copy2(source_path, question_path)
+
+    # 기존 파일이 있으면 삭제 시도
+    if os.path.exists(question_path):
+        with contextlib.suppress(PermissionError):
+            os.remove(question_path)
+
+    # 복사 시도 (재시도 포함)
+    for _attempt in range(3):
+        try:
+            shutil.copy2(source_path, question_path)
+            break
+        except PermissionError:
+            time.sleep(1)
+    else:
+        print(f"{filename}: 파일 복사 실패 (파일이 열려 있을 수 있음)")
+        return
 
     # 2. 복사된 파일 열기
     doc = docx.Document(question_path)
@@ -158,6 +196,17 @@ def create_quiz_from_db(source_path, output_dir):
 if __name__ == "__main__":
     base_dir = r"D:\code proj\word proj"
 
-    # 국가배상, 손실보상만 테스트
-    source = os.path.join(base_dir, "사례_국가배상, 손실보상.docx")
-    create_quiz_from_db(source, base_dir)
+    files = [
+        "사례_국가배상, 손실보상",
+        "사례_지자체, 공무원법, 토지보상법, 재개발 등",
+        "사례_행정과 법원리, 행정절차",
+        "사례_행정심판, 행정소송",
+        "사례_행정입법, 행정계획",
+    ]
+
+    for f in files:
+        source = os.path.join(base_dir, f"{f}.docx")
+        if os.path.exists(source):
+            create_quiz_from_db(source, base_dir)
+        else:
+            print(f"{f}.docx 파일 없음")
