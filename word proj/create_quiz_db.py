@@ -12,33 +12,9 @@ from docx.shared import Pt
 sys.stdout.reconfigure(encoding="utf-8")
 
 
-# 빈칸 번호용: ▁①▁ 형식 (줄 + 원형문자 + 줄)
+# 빈칸 번호용: ▁1▁ 형식 (문단별 번호 restart)
 def blank_format(num):
-    """빈칸 번호를 ▁①▁ 형식으로 반환"""
-    if num <= 20:
-        circled = [
-            "①",
-            "②",
-            "③",
-            "④",
-            "⑤",
-            "⑥",
-            "⑦",
-            "⑧",
-            "⑨",
-            "⑩",
-            "⑪",
-            "⑫",
-            "⑬",
-            "⑭",
-            "⑮",
-            "⑯",
-            "⑰",
-            "⑱",
-            "⑲",
-            "⑳",
-        ]
-        return f"▁{circled[num - 1]}▁"
+    """빈칸 번호를 ▁1▁ 형식으로 반환"""
     return f"▁{num}▁"
 
 
@@ -172,9 +148,8 @@ def get_heading_text(para):
 def create_quiz_from_db(source_path, output_dir):
     """
     DB에서 빈칸 단어를 가져와서 문제 생성
-    - 문단당 최대 2개 빈칸
-    - ①②③④ 번호 사용
-    - 답안지에 섹션별 그룹핑
+    - 문단별 번호 restart (1번부터)
+    - 답안지에 문단 제목 + 번호
     """
     filename = os.path.splitext(os.path.basename(source_path))[0]
     blank_words = get_blank_words_for_file(filename)
@@ -205,34 +180,36 @@ def create_quiz_from_db(source_path, output_dir):
 
     # 3. 섹션 추적 및 답안용 데이터
     current_section = "기타"
-    blank_counter = 0
-    answer_list = []  # [(번호, 단어, 섹션제목), ...]
-    section_blanks = {}  # {섹션제목: [(번호, 단어), ...]}
+    answer_list = []  # [(문단번호, 빈칸번호, 단어, 섹션제목), ...]
+    section_blanks = {}  # {섹션제목: [(문단번호, 빈칸번호, 단어), ...]}
+    para_num = 0  # 전체 문단 번호
 
     # 4. 문단별 빈칸 변경
     for para in doc.paragraphs:
+        para_num += 1
+
         # 섹션 변경 감지
         heading = get_heading_text(para)
         if heading:
             current_section = heading
 
-        # 빈칸 변경 (문단 전체에서 최대 2개)
+        # 빈칸 변경 (문단당 최대 2개, 번호 restart)
         blank_count = 0
         for word in blank_words:
             if blank_count >= 2:
                 break
-            # 이미 빈칸이 있으면 건너뛰기
             if "▁" in para.text:
                 break
             if word in para.text:
-                blank_counter += 1
-                fmt = blank_format(blank_counter)
+                blank_count += 1
+                fmt = blank_format(blank_count)
                 if replace_word_in_para(para, word, fmt):
-                    answer_list.append((blank_counter, word, current_section))
+                    answer_list.append((para_num, blank_count, word, current_section))
                     if current_section not in section_blanks:
                         section_blanks[current_section] = []
-                    section_blanks[current_section].append((blank_counter, word))
-                    blank_count += 1
+                    section_blanks[current_section].append(
+                        (para_num, blank_count, word)
+                    )
 
     # 5. 표에서도 빈칸 변경
     for table in doc.tables:
@@ -250,18 +227,17 @@ def create_quiz_from_db(source_path, output_dir):
                         if "▁" in para.text:
                             break
                         if word in para.text:
-                            blank_counter += 1
-                            fmt = blank_format(blank_counter)
+                            blank_count += 1
+                            fmt = blank_format(blank_count)
                             if replace_word_in_para(para, word, fmt):
                                 answer_list.append(
-                                    (blank_counter, word, current_section)
+                                    (para_num, blank_count, word, current_section)
                                 )
                                 if current_section not in section_blanks:
                                     section_blanks[current_section] = []
                                 section_blanks[current_section].append(
-                                    (blank_counter, word)
+                                    (para_num, blank_count, word)
                                 )
-                                blank_count += 1
 
     # 6. 저장
     doc.save(question_path)
@@ -285,10 +261,10 @@ def create_quiz_from_db(source_path, output_dir):
         section_run.font.size = Pt(12)
         section_run.font.name = "Arial"
 
-        # 빈칸 목록
-        for num, word in blanks:
+        # 빈칸 목록 (문단번호-빈칸번호)
+        for para_no, blank_no, word in blanks:
             item_para = answer_doc.add_paragraph()
-            item_run = item_para.add_run(f"  {num}번. {word}")
+            item_run = item_para.add_run(f"  {para_no}-{blank_no}. {word}")
             item_run.font.name = "Arial"
 
     answer_doc.save(answer_path)
@@ -296,7 +272,7 @@ def create_quiz_from_db(source_path, output_dir):
     print(
         f"생성 완료: {os.path.basename(question_path)}, {os.path.basename(answer_path)}"
     )
-    print(f"  빈칸 총 {blank_counter}개, 섹션 {len(section_blanks)}개")
+    print(f"  빈칸 총 {len(answer_list)}개, 섹션 {len(section_blanks)}개")
 
 
 if __name__ == "__main__":
