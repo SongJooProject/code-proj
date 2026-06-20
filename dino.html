@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>픽셀 공룡</title>
+    <style>
+        body {
+            margin: 0;
+            background: #87CEEB;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: monospace;
+        }
+        canvas {
+            border: 2px solid #333;
+            background: #90EE90;
+        }
+        .controls {
+            margin-top: 10px;
+            font-size: 20px;
+        }
+        .speed {
+            font-size: 24px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="game" width="400" height="300"></canvas>
+    <div class="controls">키보드 위/아래 화살표로 속도 조절</div>
+    <div class="speed">속도: <span id="speed">1</span></div>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const speedDisplay = document.getElementById('speed');
+
+        let speed = 1;
+        let x = 0;
+        let y = 280;
+        let frame = 0;
+
+        const dino = [
+            [0,0,1,1,1,0,0],
+            [0,0,1,0,1,1,0],
+            [0,0,1,1,1,0,0],
+            [0,1,1,1,1,1,0],
+            [1,0,0,1,0,0,1],
+            [0,0,1,1,1,0,0],
+            [0,1,0,0,0,1,0],
+        ];
+
+        function drawDino(px, py, legUp) {
+            ctx.fillStyle = '#228B22';
+            for (let row = 0; row < dino.length; row++) {
+                for (let col = 0; col < dino[row].length; col++) {
+                    if (dino[row][col]) {
+                        let drawRow = row;
+                        if (row === 6 && legUp) drawRow -= 1;
+                        ctx.fillRect(px + col * 6, py + drawRow * 6, 6, 6);
+                    }
+                }
+            }
+        }
+
+        function drawGround() {
+            ctx.fillStyle = '#8B4513';
+            for (let i = 0; i < 400; i += 20) {
+                ctx.fillRect(i, 290, 15, 10);
+            }
+        }
+
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawGround();
+            drawDino(x, y, frame % 20 < 10);
+
+            x += speed;
+            y -= speed * 0.5;
+
+            if (x > 400) { x = -50; y = 280; }
+            if (y < 0) { y = 280; }
+
+            frame++;
+            requestAnimationFrame(update);
+        }
+
+        function changeSpeed(delta) {
+            speed = Math.max(0.5, Math.min(5, speed + delta));
+            speedDisplay.textContent = speed;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp') changeSpeed(0.5);
+            else if (e.key === 'ArrowDown') changeSpeed(-0.5);
+        });
+
+        update();
+    </script>
+</body>
+</html>

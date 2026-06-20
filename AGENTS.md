@@ -27,11 +27,13 @@ D:\code proj\
 - **완료 기준**: `ruff check .` 정상 작동
 
 ### Task 2: 기본 구조 만들기
-- [ ] src/ 디렉토리 생성
-- [ ] tests/ 디렉토리 생성
-- [ ] __init__.py 파일 생성
-- [ ] 기본 모듈 작성
-- **완료 기준**: `python -m pytest` 테스트 통과
+- [x] src/ 디렉토리 생성
+- [x] tests/ 디렉토리 생성
+- [x] __init__.py 파일 생성
+- [x] 기본 모듈 작성 (src/core.py)
+- [x] 테스트 코드 작성 (tests/test_core.py)
+- [x] pytest 설치 및 테스트 통과
+- **완료 기준**: `python -m pytest` 테스트 통과 ✅
 
 ### Task 3: 기능 구현
 - [ ] TBD
