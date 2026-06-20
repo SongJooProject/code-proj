@@ -1,6 +1,11 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "python-linter",
+  "plugin": {
+    "oh-my-openagent": {
+      "enabled": true
+    }
+  },
   "agent": {
     "python-linter": {
       "description": "파이썬 코드 린팅 및 스타일 검사 전문 에이전트",
@@ -17,6 +22,11 @@
     "bash": {
       "ruff *": "allow",
       "python *": "allow",
+      "git *": "allow",
+      "pip *": "allow",
+      "echo *": "allow",
+      "ls *": "allow",
+      "cat *": "allow",
       "*": "ask"
     }
   }

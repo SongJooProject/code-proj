@@ -134,22 +134,33 @@ def replace_word_in_para(para, word, new_text):
     return False
 
 
-def get_heading_text(para):
-    """Heading 스타일에서 제목 텍스트 추출"""
+def get_heading_info(para):
+    """Heading 스타일에서 제목 텍스트와 레벨 추출"""
     if (
         para.style
         and para.style.name
         and ("Heading" in para.style.name or "제목" in para.style.name)
     ):
-        return para.text.strip()
-    return None
+        text = para.text.strip()
+        # 레벨 추출 (Heading 1 -> 1, Heading 2 -> 2, ...)
+        style_name = para.style.name
+        if "Heading" in style_name:
+            try:
+                level = int(style_name.split()[-1])
+            except (ValueError, IndexError):
+                level = 1
+        else:
+            level = 1
+        return text, level
+    return None, 0
 
 
 def create_quiz_from_db(source_path, output_dir):
     """
     DB에서 빈칸 단어를 가져와서 문제 생성
-    - 문단별 번호 restart (1번부터)
-    - 답안지에 문단 제목 + 번호
+    - 섹션별 번호 restart (1번부터)
+    - 상위 섹션 포함하여 고유한 섹션 이름 생성
+    - 답안지에 【섹션 제목】 + 번호
     """
     filename = os.path.splitext(os.path.basename(source_path))[0]
     blank_words = get_blank_words_for_file(filename)
@@ -179,64 +190,87 @@ def create_quiz_from_db(source_path, output_dir):
     doc = docx.Document(question_path)
 
     # 3. 섹션 추적 및 답안용 데이터
+    section_stack = []  # [(level, text), ...] 상위 섹션 추적
     current_section = "기타"
-    answer_list = []  # [(문단번호, 빈칸번호, 단어, 섹션제목), ...]
-    section_blanks = {}  # {섹션제목: [(문단번호, 빈칸번호, 단어), ...]}
-    para_num = 0  # 전체 문단 번호
+    section_blank_num = 0  # 섹션별 빈칸 번호
+    answer_list = []  # [(섹션제목, 빈칸번호, 단어), ...]
+    section_blanks = {}  # {섹션제목: [(빈칸번호, 단어), ...]}
+    section_used_words = {}  # {섹션제목: set(사용된 단어)} — 섹션 내 중복 제거용
+    table_count = 0  # 표 번호
 
     # 4. 문단별 빈칸 변경
     for para in doc.paragraphs:
-        para_num += 1
-
         # 섹션 변경 감지
-        heading = get_heading_text(para)
-        if heading:
-            current_section = heading
+        heading_text, heading_level = get_heading_info(para)
+        if heading_text:
+            # 상위 섹션 업데이트
+            while section_stack and section_stack[-1][0] >= heading_level:
+                section_stack.pop()
+            section_stack.append((heading_level, heading_text))
 
-        # 빈칸 변경 (문단당 최대 2개, 번호 restart)
+            # 고유한 섹션 이름 생성 (상위 섹션 포함)
+            full_section = " > ".join([s[1] for s in section_stack])
+
+            if full_section != current_section:
+                current_section = full_section
+                section_blank_num = 0  # 섹션 변경 시 번호 초기화
+
+        # 빈칸 변경 (문단당 최대 2개, 섹션 내 중복 제거)
         blank_count = 0
         for word in blank_words:
             if blank_count >= 2:
                 break
             if "▁" in para.text:
                 break
+            # 섹션 내 중복 제거
+            if current_section not in section_used_words:
+                section_used_words[current_section] = set()
+            if word in section_used_words[current_section]:
+                continue
             if word in para.text:
                 blank_count += 1
-                fmt = blank_format(blank_count)
+                section_used_words[current_section].add(word)
+                section_blank_num += 1
+                fmt = blank_format(section_blank_num)
                 if replace_word_in_para(para, word, fmt):
-                    answer_list.append((para_num, blank_count, word, current_section))
+                    answer_list.append((current_section, section_blank_num, word))
                     if current_section not in section_blanks:
                         section_blanks[current_section] = []
-                    section_blanks[current_section].append(
-                        (para_num, blank_count, word)
-                    )
+                    section_blanks[current_section].append((section_blank_num, word))
 
     # 5. 표에서도 빈칸 변경
-    for table in doc.tables:
+    for _table_idx, table in enumerate(doc.tables):
+        table_count += 1
+        # 표 섹션 생성
+        table_section = f"표 {table_count}"
+        table_section_blank_num = 0
+        section_used_words[table_section] = set()  # 표 섹션용 중복 제거
+
         for row in table.rows:
             for cell in row.cells:
                 for para in cell.paragraphs:
-                    heading = get_heading_text(para)
-                    if heading:
-                        current_section = heading
-
+                    # 빈칸 변경 (표 내 중복 제거)
                     blank_count = 0
                     for word in blank_words:
                         if blank_count >= 2:
                             break
                         if "▁" in para.text:
                             break
+                        if word in section_used_words[table_section]:
+                            continue
                         if word in para.text:
                             blank_count += 1
-                            fmt = blank_format(blank_count)
+                            section_used_words[table_section].add(word)
+                            table_section_blank_num += 1
+                            fmt = blank_format(table_section_blank_num)
                             if replace_word_in_para(para, word, fmt):
                                 answer_list.append(
-                                    (para_num, blank_count, word, current_section)
+                                    (table_section, table_section_blank_num, word)
                                 )
-                                if current_section not in section_blanks:
-                                    section_blanks[current_section] = []
-                                section_blanks[current_section].append(
-                                    (para_num, blank_count, word)
+                                if table_section not in section_blanks:
+                                    section_blanks[table_section] = []
+                                section_blanks[table_section].append(
+                                    (table_section_blank_num, word)
                                 )
 
     # 6. 저장
@@ -261,10 +295,10 @@ def create_quiz_from_db(source_path, output_dir):
         section_run.font.size = Pt(12)
         section_run.font.name = "Arial"
 
-        # 빈칸 목록 (문단번호-빈칸번호)
-        for para_no, blank_no, word in blanks:
+        # 빈칸 목록 (섹션별 번호)
+        for blank_no, word in blanks:
             item_para = answer_doc.add_paragraph()
-            item_run = item_para.add_run(f"  {para_no}-{blank_no}. {word}")
+            item_run = item_para.add_run(f"  {blank_no}번. {word}")
             item_run.font.name = "Arial"
 
     answer_doc.save(answer_path)
